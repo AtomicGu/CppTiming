@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 by Yuhao Gu. All rights reserved.
  * E-Mail: yhgu2000@outlook.com
-V1.0.0 */
+V1.0.1 */
 
 #include "timing.h"
 #include <iomanip>
@@ -88,7 +88,7 @@ ComparisionReport::RESULTS compare_method_1(AnalysisReport& f1, AnalysisReport& 
 	}
 	double S = sqrt(
 		((faster->records_p->_size - 1) * faster->vari + (slower->records_p->_size - 1) * slower->vari)
-		/ (faster->records_p->_size + slower->records_p->_size - 2)
+		/ (static_cast<double>(faster->records_p->_size) + slower->records_p->_size - 2)
 	);
 	double t = (faster->mean - slower->mean) / (S * sqrt(1 / faster->records_p->_size + 1 / slower->records_p->_size));
 	level = 1 - level;
@@ -238,7 +238,7 @@ std::ostream& operator<<(std::ostream& out, const ComparisionReport& cp)
 	out << "|                                               |\n"
 		<< "+-----------------------------------------------+\n"
 		<< "|                                               |\n"
-		<< "|   Analyzation:                                |\n"
+		<< "|   Analysis:                                   |\n"
 		<< "|     mean:" << "    " << setw(11) << left << cp.ar1_p->mean << "     " << setw(12) << cp.ar2_p->mean << right << setw(7) << "|\n"
 		<< "|     vari:" << "    " << setw(11) << left << cp.ar1_p->vari << "     " << setw(12) << cp.ar2_p->vari << right << setw(7) << "|\n"
 		<< "|     socm:" << "    " << setw(11) << left << cp.ar1_p->socm << "     " << setw(12) << cp.ar2_p->socm << right << setw(7) << "|\n"
@@ -248,9 +248,9 @@ std::ostream& operator<<(std::ostream& out, const ComparisionReport& cp)
 		<< "|                                               |\n"
 		<< "+-----------------------------------------------+\n"
 		<< "|                                               |\n"
-		<< "|   Confidence level:  " << left << setw(10) << cp.level << "               |\n"
-		<< "|   Faster by:" << right << setprecision(4) << setw(12) << cp.fater_by << "%                     |\n"
-		<< "|   Time save:" << setprecision(4) << setw(12) << 1.0 / (cp.fater_by + 1) - 1 << "%                     |\n"
+		<< "|   Significance Level : " << left << setw(10) << cp.level << "             |\n"
+		<< "|   Faster By:" << right << setprecision(4) << setw(12) << cp.fater_by << "%                     |\n"
+		<< "|   Time Saved:" << setprecision(4) << setw(12) << 1.0 / (cp.fater_by + 1) - 1 << "%                    |\n"
 		<< "|   Conclusion:                                 |\n"
 		<< "|          ******************************       |\n";
 	switch (cp.result)
