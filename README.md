@@ -1,2 +1,9 @@
 # CppTiming
-A timing solution for c++ functions using probability theory and mathematical statistics / 应用概率论和数理统计的C++函数计时解决方案
+
+使用概率论和数理统计知识来比较C++函数的优劣（应用概率统计方法的函数测试评价方案）
+
+头文件里每个函数都有注释，说的很明白了
+
+由于最初设计定位是辅助测试的工具，为了兼顾效率和体积方面，接口类的设计并没有设计的十分安全，尽管在接口中已经尽量避免危险的情况
+
+注意：AnalysisReport与ComparisionReport中包含指向数据来源的指针，使用时请当心指针悬挂
