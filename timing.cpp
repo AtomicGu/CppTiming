@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 by Yuhao Gu. All rights reserved.
  * E-Mail: yhgu2000@outlook.com
-V2.1 */
+V2.2 */
 
 #include "timing.h"
 #include <iomanip>
@@ -242,10 +242,10 @@ std::ostream& operator<<(std::ostream& out, const ComparisionReport& cp)
 		out << tr1._f;
 	out << "|\n"
 		<< "|   f2 Name: " << setw(35);
-	if (tr1._name_ps)
-		out << tr1._name_ps;
+	if (tr2._name_ps)
+		out << tr2._name_ps;
 	else
-		out << tr1._f;
+		out << tr2._f;
 	out << "|\n"
 		<< "|                                               |\n"
 		<< "|   Sample Records:                             |\n"

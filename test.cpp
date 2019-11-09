@@ -3,7 +3,7 @@
  * E-Mail: yhgu2000@outlook.com
 V1.0 */
 
-// ¼òµ¥µÄ×¼È·ÂÊ²âÑé³ÌĞò
+// ç®€å•çš„å‡†ç¡®ç‡æµ‹éªŒç¨‹åº
 
 #include <iostream>
 #include <random>
