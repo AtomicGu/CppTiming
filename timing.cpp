@@ -1,15 +1,79 @@
 /*
  * Copyright (c) 2019 by Yuhao Gu. All rights reserved.
  * E-Mail: yhgu2000@outlook.com
-V1.0.1 */
+V2.0 */
 
 #include "timing.h"
 #include <iomanip>
+#include <chrono>
 #include <cmath>
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 
 using namespace std;
+
+TimingRecords::TimingRecords() :
+	_f(nullptr),
+	_data_p(nullptr),
+	_size(0),
+	_name_ps(nullptr)
+{}
+
+TimingRecords::TimingRecords(TestedFunc f, unsigned int size, const char* name_ps) :
+	_f(f),
+	_data_p(new double[size]),
+	_size(size),
+	_name_ps(name_ps ? strcpy(new char[strlen(name_ps) + 1], name_ps) : nullptr)
+{
+}
+
+TimingRecords::TimingRecords(const TimingRecords& cpy) :
+	_f(cpy._f),
+	_data_p(static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double)* cpy._size))),
+	_size(cpy._size),
+	_name_ps(cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr)
+{
+}
+
+TimingRecords::TimingRecords(TimingRecords&& mov) noexcept :
+	_f(mov._f),
+	_data_p(mov._data_p),
+	_size(mov._size),
+	_name_ps(mov._name_ps)
+{
+	mov._data_p = nullptr;
+	mov._name_ps = nullptr;
+}
+
+TimingRecords::~TimingRecords() noexcept
+{
+	if (_data_p)
+		delete[] _data_p;
+	if (_name_ps)
+		delete[] _name_ps;
+}
+
+TimingRecords& TimingRecords::operator=(const TimingRecords& cpy)
+{
+	if (this == &cpy)
+		return *this;
+	this->~TimingRecords();
+	_f = cpy._f;
+	_data_p = static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double) * cpy._size));
+	_size = cpy._size;
+	_name_ps = cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr;
+	return *this;
+}
+
+TimingRecords& TimingRecords::operator=(TimingRecords&& mov) noexcept
+{
+	this->~TimingRecords();
+	_f = mov._f;
+	_data_p = mov._data_p;
+	mov._data_p = nullptr;
+	_size = mov._size;
+	_name_ps = mov._name_ps;
+	mov._name_ps = nullptr;
+	return *this;
+}
 
 // 正态分布分位点计算函数
 double n_alpha(double a, double mean = 0, double vari = 1)
@@ -64,19 +128,15 @@ double t_alpha(double alpha, int n)
 		1.6829,1.6820,1.6811,1.6802,1.6794
 	};
 	if (n < 1 || n > 45)
-	{
 		return 0;
-	}
 	else
-	{
 		return table_005[n];
-	}
 }
 
-ComparisionReport::RESULTS compare_method_1(AnalysisReport& f1, AnalysisReport& f2, double level)
+ComparisionReport::Results compare_method_1(AnalysisReport& f1, AnalysisReport& f2, double level)
 {
 	AnalysisReport* faster, * slower;
-	if (f1.mean < f2.mean)
+	if (f1._mean < f2._mean)
 	{
 		faster = &f1;
 		slower = &f2;
@@ -87,34 +147,35 @@ ComparisionReport::RESULTS compare_method_1(AnalysisReport& f1, AnalysisReport& 
 		slower = &f1;
 	}
 	double S = sqrt(
-		((faster->records_p->_size - 1) * faster->vari + (slower->records_p->_size - 1) * slower->vari)
-		/ (static_cast<double>(faster->records_p->_size) + slower->records_p->_size - 2)
+		((faster->_records_p->_size - 1) * faster->_vari + (slower->_records_p->_size - 1) * slower->_vari)
+		/ (static_cast<double>(faster->_records_p->_size) + slower->_records_p->_size - 2)
 	);
-	double t = (faster->mean - slower->mean) / (S * sqrt(1 / faster->records_p->_size + 1 / slower->records_p->_size));
+	double t = (faster->_mean - slower->_mean) / (S * sqrt(1 / faster->_records_p->_size + 1 / slower->_records_p->_size));
 	level = 1 - level;
-	if (t <= -t_alpha(level, faster->records_p->_size + slower->records_p->_size - 2))
+	if (t <= -t_alpha(level, faster->_records_p->_size + slower->_records_p->_size - 2))
 	{
-		if (faster = &f1)
-			return ComparisionReport::RESULTS::F1_FASTER;
+		if (faster == &f1)
+			return ComparisionReport::Results::kF1Faster;
 		else
-			return ComparisionReport::RESULTS::F2_FASTER;
+			return ComparisionReport::Results::kF2Faster;
 	}
-	else return ComparisionReport::RESULTS::BALANCE;
+	else
+		return ComparisionReport::Results::kBalance;
 }
 
-ComparisionReport::RESULTS compare_method_2(AnalysisReport& f1, AnalysisReport& f2, double level)
+ComparisionReport::Results compare_method_2(AnalysisReport& f1, AnalysisReport& f2, double level)
 {
 	const AnalysisReport* faster, * slower;
-	if (f1.mean < f2.mean)
+	if (f1._mean < f2._mean)
 		faster = &f1, slower = &f2;
 	else
 		faster = &f2, slower = &f1;
-	unsigned int sample_num = f1.records_p->_size;
+	unsigned int sample_num = f1._records_p->_size;
 	double* y_records = new double[sample_num];
 	double mean = 0;
 	for (unsigned int i = 0; i < sample_num; ++i)
 	{
-		mean += (y_records[i] = faster->records_p->_p[i] - slower->records_p->_p[i]);
+		mean += (y_records[i] = faster->_records_p->_data_p[i] - slower->_records_p->_data_p[i]);
 	}
 	mean /= sample_num;
 	double vari = 0;
@@ -124,33 +185,39 @@ ComparisionReport::RESULTS compare_method_2(AnalysisReport& f1, AnalysisReport& 
 	}
 	double t = mean / (sqrt(vari) / sqrt(sample_num));
 	level = 1 - level;
-	if (t <= -t_alpha(level, f1.records_p->_size - 1))
+	if (t <= -t_alpha(level, f1._records_p->_size - 1))
 	{
 		if (faster == &f1)
-			return ComparisionReport::RESULTS::F1_FASTER;
+			return ComparisionReport::Results::kF1Faster;
 		else
-			return ComparisionReport::RESULTS::F2_FASTER;
+			return ComparisionReport::Results::kF2Faster;
 	}
-	else return ComparisionReport::RESULTS::BALANCE;
+	else
+		return ComparisionReport::Results::kBalance;
 }
 
-double timing(pFunc f)
+double timing(TestedFunc f)
 {
-	LARGE_INTEGER t1, t2, tc;
-	QueryPerformanceFrequency(&tc);
-	QueryPerformanceCounter(&t1);
+	using clk_period = chrono::high_resolution_clock::period;
+	constexpr double kPeriod = static_cast<double>(clk_period::num) / clk_period::den;
+	auto begin_time = chrono::high_resolution_clock::now();
 	f();
-	QueryPerformanceCounter(&t2);
-	return (t2.QuadPart - t1.QuadPart) * 1.0 / tc.QuadPart;
+	auto end_time = chrono::high_resolution_clock::now();
+	return kPeriod * (end_time - begin_time).count();
 }
 
-TimingRecords timing(pFunc f, unsigned int sample_num, std::ostream* watcher_p)
+TimingRecords timing(
+	TestedFunc f,
+	unsigned int sample_num,
+	const char* name,
+	std::ostream* watcher_p
+)
 {
-	TimingRecords timing_records(f, sample_num);
+	TimingRecords timing_records(f, sample_num, name);
 	for (unsigned int i = 0; i < sample_num; ++i)
 	{
-		if (watcher_p)* watcher_p << "Timing " << f << " : " << i << endl;
-		timing_records._p[i] = timing(f);
+		if (watcher_p)*watcher_p << "Timing " << f << " : " << i << endl;
+		timing_records._data_p[i] = timing(f);
 	}
 	return std::move(timing_records);
 }
@@ -158,133 +225,173 @@ TimingRecords timing(pFunc f, unsigned int sample_num, std::ostream* watcher_p)
 AnalysisReport analyze(TimingRecords& records, double degree)
 {
 	AnalysisReport report;
-	report.records_p = &records;
+	report._records_p = &records;
 	// 计算均值
-	report.mean = 0;
-	report.vari = 0;
+	report._mean = 0;
+	report._vari = 0;
 	for (unsigned int i = 0; i < records._size; ++i)
-		report.mean += records._p[i];
-	report.mean /= records._size;
+		report._mean += records._data_p[i];
+	report._mean /= records._size;
 	// 计算方差和二阶中心距
 	for (unsigned int i = 0; i < records._size; ++i)
-		report.vari += pow(records._p[i] - report.mean, 2);
-	report.socm = report.vari / records._size;
-	report.vari /= records._size - 1.0;
+		report._vari += pow(records._data_p[i] - report._mean, 2);
+	report._socm = report._vari / records._size;
+	report._vari /= records._size - 1.0;
 	// 计算置信区间
-	report.interval.degree = degree;
-	report.interval.lower_bound = report.mean + sqrt(report.vari) * n_alpha(0.5 - degree / 2);
-	report.interval.upper_bound = report.mean + sqrt(report.vari) * n_alpha(0.5 + degree / 2);
-	return report;
+	report._interval._degree = degree;
+	report._interval._lowerBound = report._mean + sqrt(report._vari) * n_alpha(0.5 - degree / 2);
+	report._interval._upperBound = report._mean + sqrt(report._vari) * n_alpha(0.5 + degree / 2);
+	return std::move(report);
 }
 
-ComparisionReport compare(AnalysisReport& f1, AnalysisReport& f2, pCompareMethod method_p, double level)
+ComparisionReport compare(
+	AnalysisReport& f1,
+	AnalysisReport& f2,
+	CompareMethod method_p,
+	double level
+)
 {
 	ComparisionReport cp;
-	cp.ar1_p = &f1, cp.ar2_p = &f2;
-	cp.level = level;
-	cp.result = method_p(f1, f2, level);
-	if (f1.mean < f2.mean)
-		cp.fater_by = f2.mean / f1.mean - 1;
+	cp._ar1_p = &f1, cp._ar2_p = &f2;
+	cp._level = level;
+	cp._result = method_p(f1, f2, level);
+	if (f1._mean < f2._mean)
+		cp._faterBy = f2._mean / f1._mean - 1;
 	else
-		cp.fater_by = f1.mean / f2.mean - 1;
+		cp._faterBy = f1._mean / f2._mean - 1;
 	return std::move(cp);
 }
 
-std::ostream& operator<<(std::ostream& out, const AnalysisReport& tp)
+std::ostream& operator<<(std::ostream& out, const AnalysisReport& ar)
 {
 	out << "+----------- Timing Report -----------+\n"
 		<< "|                                     |\n"
-		<< "|   Function: " << setw(8) << tp.records_p->_f << "              |\n"
-		<< "|   Sample Records:                   |" << endl;
-	for (unsigned int i = 0; i < tp.records_p->_size; ++i)
+		<< "|   Function Name: " << left << setw(19);
+	if (ar._records_p->_name_ps)
+		out << ar._records_p->_name_ps;
+	else
+		out << ar._records_p->_f;
+	out << "|\n"
+		<< "|                                     |\n"
+		<< "|   Sample Records:                   |\n";
+	for (unsigned int i = 0; i < ar._records_p->_size; ++i)
 	{
-		out << "|" << setw(12) << i << "    " << setw(12) << left << tp.records_p->_p[i] << right << setw(10) << "|" << endl;
+		out << setw(12) << "|" << left << setw(5) << i << left << setw(21) << ar._records_p->_data_p[i] << "|\n";
 	}
 	out << "|                                     |\n"
 		<< "+-------------------------------------+\n"
 		<< "|                                     |\n"
 		<< "|   Analyzation:                      |\n"
-		<< "|       mean:" << setw(14) << tp.mean << setw(13) << "|\n"
-		<< "|       vari:" << setw(14) << tp.vari << setw(13) << "|\n"
-		<< "|       socm:" << setw(14) << tp.socm << setw(13) << "|\n"
+		<< "|       mean:    " << setw(21) << ar._mean << "|\n"
+		<< "|       vari:    " << setw(21) << ar._vari << "|\n"
+		<< "|       socm:    " << setw(21) << ar._socm << "|\n"
 		<< "|       ival(0.95):                   |\n"
-		<< "|         [" << setw(11) << tp.interval.lower_bound << "," << setw(11) << tp.interval.upper_bound << "]   |\n"
+		<< "|         [" << right << setw(11) << ar._interval._lowerBound << "," << left << setw(11) << ar._interval._upperBound << "]   |\n"
 		<< "|                                     |\n"
-		<< "+-------------------------------------+" << endl;
+		<< "+-------------------------------------+\n";
 	return out;
 }
 
 std::ostream& operator<<(std::ostream& out, const ComparisionReport& cp)
 {
+	const auto& ar1 = *cp._ar1_p;
+	const auto& ar2 = *cp._ar2_p;
+	const auto& tr1 = *ar1._records_p;
+	const auto& tr2 = *ar2._records_p;
 	out << "+-------------- Comparision Report -------------+\n"
 		<< "|                                               |\n"
+		<< "|   f1 Name: " << left << setw(35);
+	if (tr1._name_ps)
+		out << tr1._name_ps;
+	else
+		out << tr1._f;
+	out << "|\n"
+		<< "|   f2 Name: " << setw(35);
+	if (tr1._name_ps)
+		out << tr1._name_ps;
+	else
+		out << tr1._f;
+	out << "|\n"
+		<< "|                                               |\n"
 		<< "|   Sample Records:                             |\n"
-		<< "|     index      f1(" << setw(8) << cp.ar1_p->records_p->_f << ")    f2(" << setw(8) << cp.ar2_p->records_p->_f << ")   |" << endl;
-	for (unsigned int i = 0, j = 0; i < cp.ar1_p->records_p->_size || j < cp.ar2_p->records_p->_size; ++i, ++j)
+		<< "|     index       f1              f2            |\n";
+	for (unsigned int i = 0, j = 0; i < tr1._size || j < tr2._size; ++i, ++j)
 	{
-		out << "|" << setw(8) << i;
-		out << left << "      " << setw(16);
-		if (i < cp.ar1_p->records_p->_size)
-			out << cp.ar1_p->records_p->_p[i];
+		out << setw(8) << "|" << setw(7) << i;
+		out << setw(16);
+		if (i < tr1._size)
+			out << tr1._data_p[i];
 		else
 			out << "******";
 		out << setw(16);
-		if (i < cp.ar2_p->records_p->_size)
-			out << cp.ar2_p->records_p->_p[i];
+		if (i < tr2._size)
+			out << tr2._data_p[i];
 		else
 			out << "******";
-		out << right << setw(2) << "|" << endl;
+		out << " |\n";
 	}
 	out << "|                                               |\n"
 		<< "+-----------------------------------------------+\n"
 		<< "|                                               |\n"
 		<< "|   Analysis:                                   |\n"
-		<< "|     mean:" << "    " << setw(11) << left << cp.ar1_p->mean << "     " << setw(12) << cp.ar2_p->mean << right << setw(7) << "|\n"
-		<< "|     vari:" << "    " << setw(11) << left << cp.ar1_p->vari << "     " << setw(12) << cp.ar2_p->vari << right << setw(7) << "|\n"
-		<< "|     socm:" << "    " << setw(11) << left << cp.ar1_p->socm << "     " << setw(12) << cp.ar2_p->socm << right << setw(7) << "|\n"
+		<< "|     mean:    " << setw(16) << ar1._mean << setw(16) << ar2._mean << " |\n"
+		<< "|     vari:    " << setw(16) << ar1._vari << setw(16) << ar2._vari << " |\n"
+		<< "|     socm:    " << setw(16) << ar1._socm << setw(16) << ar2._socm << " |\n"
 		<< "|     ival(0.95):                               |\n"
-		<< "|              [" << left << setw(11) << cp.ar1_p->interval.lower_bound << ",    [" << setw(11) << cp.ar2_p->interval.lower_bound << ",   |\n"
-		<< "|                " << right << setw(11) << cp.ar1_p->interval.upper_bound << "]     " << setw(11) << cp.ar2_p->interval.upper_bound << "]  |\n"
+		<< "|              [" << setw(11) << ar1._interval._lowerBound << ",    [" << setw(11) << ar2._interval._lowerBound << ",   |\n"
+		<< "|                " << right << setw(11) << ar1._interval._upperBound << "]     " << setw(11) << ar2._interval._upperBound << "]  |\n"
 		<< "|                                               |\n"
 		<< "+-----------------------------------------------+\n"
 		<< "|                                               |\n"
-		<< "|   Significance Level : " << left << setw(10) << cp.level << "             |\n"
-		<< "|   Faster By:" << right << setprecision(4) << setw(12) << cp.fater_by << "%                     |\n"
-		<< "|   Time Saved:" << setprecision(4) << setw(12) << 1.0 / (cp.fater_by + 1) - 1 << "%                    |\n"
+		<< "|   Significance Level: " << left << setw(24) << cp._level << "|\n"
+		<< "|   Faster By:" << right << setprecision(4) << setw(12) << cp._faterBy << "%                     |\n"
+		<< "|   Time Saved:" << setprecision(4) << setw(12) << 1.0 / (cp._faterBy + 1) - 1 << "%                    |\n"
 		<< "|   Conclusion:                                 |\n"
 		<< "|          ******************************       |\n";
-	switch (cp.result)
+	switch (cp._result)
 	{
-	case ComparisionReport::BALANCE:
+	case ComparisionReport::kBalance:
 		out << "|          * no significant differences *       |\n";
 		break;
-	case ComparisionReport::F1_FASTER:
+	case ComparisionReport::kF1Faster:
 		out << "|          * f1 is significantly faster *       |\n";
 		break;
-	case ComparisionReport::F2_FASTER:
+	case ComparisionReport::kF2Faster:
 		out << "|          * f2 is significantly faster *       |\n";
 		break;
 	}
 	out << "|          ******************************       |\n"
 		<< "|                                               |\n"
-		<< "+-----------------------------------------------+" << endl;
+		<< "+-----------------------------------------------+\n";
 	return out;
 }
 
-void auto_timing(pFunc f, int sample_num, std::ostream& out)
+void auto_timing(
+	TestedFunc f,
+	int sampleNum,
+	const char* fName,
+	std::ostream& out
+)
 {
-	TimingRecords tr = timing(f, sample_num, &out);
+	TimingRecords tr = timing(f, sampleNum, fName, &out);
 	AnalysisReport ar = analyze(tr);
 	out << ar << endl;
 }
 
-void auto_compare(pFunc f1, pFunc f2, int sample_num, ostream& out)
+void auto_compare(
+	TestedFunc f1,
+	TestedFunc f2,
+	int sampleNum,
+	const char* f1Name,
+	const char* f2Name,
+	ostream& out
+)
 {
 	out << "Timing started\n"
 		<< "Timing f1" << endl;
-	TimingRecords tr1 = timing(f1, sample_num, &out);
+	TimingRecords tr1 = timing(f1, sampleNum, f1Name, &out);
 	out << "Timing f2" << endl;
-	TimingRecords tr2 = timing(f2, sample_num, &out);
+	TimingRecords tr2 = timing(f2, sampleNum, f2Name, &out);
 	out << "Timing finished\n"
 		<< "Analysis started" << endl;
 	AnalysisReport fp1 = analyze(tr1);
@@ -300,13 +407,13 @@ void auto_compare(pFunc f1, pFunc f2, int sample_num, ostream& out)
 		<< "|          ******************************       |\n";
 	switch (compare_method_2(fp1, fp2, 0.05))
 	{
-	case ComparisionReport::BALANCE:
+	case ComparisionReport::kBalance:
 		out << "|          * no significant differences *       |\n";
 		break;
-	case ComparisionReport::F1_FASTER:
+	case ComparisionReport::kF1Faster:
 		out << "|          * f1 is significantly faster *       |\n";
 		break;
-	case ComparisionReport::F2_FASTER:
+	case ComparisionReport::kF2Faster:
 		out << "|          * f2 is significantly faster *       |\n";
 		break;
 	}
