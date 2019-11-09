@@ -8,6 +8,11 @@
 
 注意：AnalysisReport与ComparisionReport中包含指向数据来源的指针，使用时请当心指针悬挂
 
+# V2.1 更新内容
+
+1. 添加了一个简单的准确率测验程序，现在可以比较两种方法的优劣了
+1. 整理了一下timing.cpp的代码
+
 # V2.0 更新内容
 
 1. 改用std::chrono计时

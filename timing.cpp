@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 by Yuhao Gu. All rights reserved.
  * E-Mail: yhgu2000@outlook.com
-V2.0 */
+V2.1 */
 
 #include "timing.h"
 #include <iomanip>
@@ -10,73 +10,8 @@ V2.0 */
 
 using namespace std;
 
-TimingRecords::TimingRecords() :
-	_f(nullptr),
-	_data_p(nullptr),
-	_size(0),
-	_name_ps(nullptr)
-{}
-
-TimingRecords::TimingRecords(TestedFunc f, unsigned int size, const char* name_ps) :
-	_f(f),
-	_data_p(new double[size]),
-	_size(size),
-	_name_ps(name_ps ? strcpy(new char[strlen(name_ps) + 1], name_ps) : nullptr)
-{
-}
-
-TimingRecords::TimingRecords(const TimingRecords& cpy) :
-	_f(cpy._f),
-	_data_p(static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double)* cpy._size))),
-	_size(cpy._size),
-	_name_ps(cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr)
-{
-}
-
-TimingRecords::TimingRecords(TimingRecords&& mov) noexcept :
-	_f(mov._f),
-	_data_p(mov._data_p),
-	_size(mov._size),
-	_name_ps(mov._name_ps)
-{
-	mov._data_p = nullptr;
-	mov._name_ps = nullptr;
-}
-
-TimingRecords::~TimingRecords() noexcept
-{
-	if (_data_p)
-		delete[] _data_p;
-	if (_name_ps)
-		delete[] _name_ps;
-}
-
-TimingRecords& TimingRecords::operator=(const TimingRecords& cpy)
-{
-	if (this == &cpy)
-		return *this;
-	this->~TimingRecords();
-	_f = cpy._f;
-	_data_p = static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double) * cpy._size));
-	_size = cpy._size;
-	_name_ps = cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr;
-	return *this;
-}
-
-TimingRecords& TimingRecords::operator=(TimingRecords&& mov) noexcept
-{
-	this->~TimingRecords();
-	_f = mov._f;
-	_data_p = mov._data_p;
-	mov._data_p = nullptr;
-	_size = mov._size;
-	_name_ps = mov._name_ps;
-	mov._name_ps = nullptr;
-	return *this;
-}
-
 // 正态分布分位点计算函数
-double n_alpha(double a, double mean = 0, double vari = 1)
+static double n_alpha(double a, double mean = 0, double vari = 1)
 {
 	if (a == 0.5) return 0;
 	static const double b[] = {
@@ -113,7 +48,7 @@ double n_alpha(double a, double mean = 0, double vari = 1)
 }
 
 // t分布分位点计算函数（暂时不会算，只能固定alpha=0.05，先预留接口）
-double t_alpha(double alpha, int n)
+static double t_alpha(double alpha, int n)
 {
 	static double table_005[] = {
 		0,
@@ -420,4 +355,69 @@ void auto_compare(
 	out << "|          ******************************       |\n"
 		<< "|                                               |\n"
 		<< "+-----------------------------------------------+" << endl;
+}
+
+TimingRecords::TimingRecords() :
+	_f(nullptr),
+	_data_p(nullptr),
+	_size(0),
+	_name_ps(nullptr)
+{}
+
+TimingRecords::TimingRecords(TestedFunc f, unsigned int size, const char* name_ps) :
+	_f(f),
+	_data_p(new double[size]),
+	_size(size),
+	_name_ps(name_ps ? strcpy(new char[strlen(name_ps) + 1], name_ps) : nullptr)
+{
+}
+
+TimingRecords::TimingRecords(const TimingRecords& cpy) :
+	_f(cpy._f),
+	_data_p(static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double)* cpy._size))),
+	_size(cpy._size),
+	_name_ps(cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr)
+{
+}
+
+TimingRecords::TimingRecords(TimingRecords&& mov) noexcept :
+	_f(mov._f),
+	_data_p(mov._data_p),
+	_size(mov._size),
+	_name_ps(mov._name_ps)
+{
+	mov._data_p = nullptr;
+	mov._name_ps = nullptr;
+}
+
+TimingRecords::~TimingRecords() noexcept
+{
+	if (_data_p)
+		delete[] _data_p;
+	if (_name_ps)
+		delete[] _name_ps;
+}
+
+TimingRecords& TimingRecords::operator=(const TimingRecords& cpy)
+{
+	if (this == &cpy)
+		return *this;
+	this->~TimingRecords();
+	_f = cpy._f;
+	_data_p = static_cast<double*>(memcpy(new double[cpy._size], cpy._data_p, sizeof(double) * cpy._size));
+	_size = cpy._size;
+	_name_ps = cpy._name_ps ? strcpy(new char[strlen(cpy._name_ps) + 1], cpy._name_ps) : nullptr;
+	return *this;
+}
+
+TimingRecords& TimingRecords::operator=(TimingRecords&& mov) noexcept
+{
+	this->~TimingRecords();
+	_f = mov._f;
+	_data_p = mov._data_p;
+	mov._data_p = nullptr;
+	_size = mov._size;
+	_name_ps = mov._name_ps;
+	mov._name_ps = nullptr;
+	return *this;
 }
