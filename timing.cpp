@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2019 by Yuhao Gu. All rights reserved.
  * E-Mail: yhgu2000@outlook.com
-V2.2 */
+V2.3 */
 
 #include "timing.h"
 #include <iomanip>
@@ -279,8 +279,8 @@ std::ostream& operator<<(std::ostream& out, const ComparisionReport& cp)
 		<< "+-----------------------------------------------+\n"
 		<< "|                                               |\n"
 		<< "|   Significance Level: " << left << setw(24) << cp._level << "|\n"
-		<< "|   Faster By:" << right << setprecision(4) << setw(12) << cp._faterBy << "%                     |\n"
-		<< "|   Time Saved:" << setprecision(4) << setw(12) << 1.0 / (cp._faterBy + 1) - 1 << "%                    |\n"
+		<< "|   Faster By:" << right << setprecision(4) << setw(12) << cp._faterBy * 100 << "%                     |\n"
+		<< "|   Time Saved:" << setprecision(4) << setw(12) << (1.0 / (cp._faterBy + 1) - 1) * 100 << "%                    |\n"
 		<< "|   Conclusion:                                 |\n"
 		<< "|          ******************************       |\n";
 	switch (cp._result)
